@@ -22,6 +22,10 @@ public class RabbitConfig {
     public static final String DEAD_LETTER_EXCHANGE = "smartlead.leads.dlx";
     public static final String DEAD_LETTER_QUEUE = "lead.qualification.dlq";
 
+    public static final String NOTIFICATION_QUEUE = "lead.notification";
+    public static final String NOTIFICATION_ROUTING_KEY = "lead.notify";
+    public static final String NOTIFICATION_DEAD_LETTER_QUEUE = "lead.notification.dlq";
+
     @Bean
     public DirectExchange leadExchange() {
         return new DirectExchange(EXCHANGE);
@@ -54,6 +58,31 @@ public class RabbitConfig {
     @Bean
     public Binding qualificationDeadLetterBinding() {
         return BindingBuilder.bind(qualificationDeadLetterQueue()).to(leadDeadLetterExchange()).with(DEAD_LETTER_QUEUE);
+    }
+
+    @Bean
+    public Queue notificationQueue() {
+        return QueueBuilder.durable(NOTIFICATION_QUEUE)
+                .deadLetterExchange(DEAD_LETTER_EXCHANGE)
+                .deadLetterRoutingKey(NOTIFICATION_DEAD_LETTER_QUEUE)
+                .build();
+    }
+
+    // Emails that could not be sent after all retries are parked here for inspection
+    @Bean
+    public Queue notificationDeadLetterQueue() {
+        return QueueBuilder.durable(NOTIFICATION_DEAD_LETTER_QUEUE).build();
+    }
+
+    @Bean
+    public Binding notificationBinding() {
+        return BindingBuilder.bind(notificationQueue()).to(leadExchange()).with(NOTIFICATION_ROUTING_KEY);
+    }
+
+    @Bean
+    public Binding notificationDeadLetterBinding() {
+        return BindingBuilder.bind(notificationDeadLetterQueue()).to(leadDeadLetterExchange())
+                .with(NOTIFICATION_DEAD_LETTER_QUEUE);
     }
 
     @Bean

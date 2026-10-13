@@ -27,6 +27,10 @@ public interface LeadRepository extends JpaRepository<Lead, UUID> {
                            @Param("urgency") String urgency,
                            Pageable pageable);
 
+    @EntityGraph(attributePaths = {"message", "message.form", "message.form.user"})
+    @Query("select l from Lead l where l.id = :id")
+    Optional<Lead> findWithOwnerById(@Param("id") UUID id);
+
     @EntityGraph(attributePaths = {"message", "message.form"})
     Optional<Lead> findByIdAndMessageFormUserId(UUID id, UUID userId);
 }

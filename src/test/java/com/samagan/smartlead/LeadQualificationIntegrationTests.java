@@ -4,15 +4,23 @@ import com.samagan.smartlead.lead.Lead;
 import com.samagan.smartlead.message.MessageStatus;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentCaptor;
 import org.springframework.ai.chat.prompt.Prompt;
 import org.springframework.ai.retry.NonTransientAiException;
 import org.springframework.ai.retry.TransientAiException;
+import org.springframework.mail.MailSendException;
+import org.springframework.mail.SimpleMailMessage;
 
 import java.util.List;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.after;
+import static org.mockito.Mockito.doNothing;
+import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.timeout;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -101,5 +109,51 @@ class LeadQualificationIntegrationTests extends IntegrationTestSupport {
 
         assertThat(awaitProcessed(messageId).getStatus()).isEqualTo(MessageStatus.FAILED);
         verify(chatModel, times(1)).call(any(Prompt.class));
+    }
+
+    @Test
+    void ownerIsEmailedAboutANewLead() {
+        modelReplies("""
+                {"isLead": true, "title": "Enterprise Demo - 50 engineers", "type": "demo-request",
+                 "urgency": "high", "summary": "Team of 50 wants a demo."}
+                """);
+
+        awaitProcessed(submit(formKey, "We are 50 engineers and want a demo."));
+
+        ArgumentCaptor<SimpleMailMessage> email = ArgumentCaptor.forClass(SimpleMailMessage.class);
+        verify(mailSender, timeout(5000)).send(email.capture());
+        assertThat(email.getValue().getTo()).containsExactly("owner@example.com");
+        // Replying goes to the person who filled in the form
+        assertThat(email.getValue().getReplyTo()).isEqualTo("sender@example.com");
+        assertThat(email.getValue().getSubject()).isEqualTo("New lead: Enterprise Demo - 50 engineers");
+        assertThat(email.getValue().getText())
+                .contains("Team of 50 wants a demo.")
+                .contains("We are 50 engineers and want a demo.")
+                .contains("Urgency: high");
+    }
+
+    @Test
+    void noEmailIsSentForANonLead() {
+        modelReplies("""
+                {"isLead": false, "title": null, "type": null, "urgency": null, "summary": null}
+                """);
+
+        awaitProcessed(submit(formKey, "Nice website, good job!"));
+
+        verify(mailSender, after(500).never()).send(any(SimpleMailMessage.class));
+    }
+
+    @Test
+    void failedEmailIsRetriedAndDoesNotAffectTheLead() {
+        modelReplies(LEAD_REPLY);
+        doThrow(new MailSendException("SMTP server unavailable"))
+                .doNothing()
+                .when(mailSender).send(any(SimpleMailMessage.class));
+
+        UUID messageId = submit(formKey, "Please book me a demo.");
+
+        assertThat(awaitProcessed(messageId).getStatus()).isEqualTo(MessageStatus.QUALIFIED);
+        verify(mailSender, timeout(5000).times(2)).send(any(SimpleMailMessage.class));
+        assertThat(leadRepository.count()).isEqualTo(1);
     }
 }

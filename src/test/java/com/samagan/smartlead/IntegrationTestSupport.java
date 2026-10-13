@@ -22,6 +22,7 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 
 import java.time.Duration;
@@ -68,6 +69,10 @@ abstract class IntegrationTestSupport {
     // The real model is never called; each test scripts its reply
     @MockitoBean
     protected ChatModel chatModel;
+
+    // No mail server in tests; sent emails are inspected on the mock
+    @MockitoBean
+    protected JavaMailSender mailSender;
 
     @BeforeEach
     void cleanDatabase() {

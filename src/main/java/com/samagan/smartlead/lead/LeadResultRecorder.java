@@ -3,6 +3,7 @@ package com.samagan.smartlead.lead;
 import com.samagan.smartlead.message.Message;
 import com.samagan.smartlead.message.MessageRepository;
 import com.samagan.smartlead.message.MessageStatus;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -21,10 +22,14 @@ public class LeadResultRecorder {
 
     private final MessageRepository messageRepository;
     private final LeadRepository leadRepository;
+    private final ApplicationEventPublisher eventPublisher;
 
-    public LeadResultRecorder(MessageRepository messageRepository, LeadRepository leadRepository) {
+    public LeadResultRecorder(MessageRepository messageRepository,
+                              LeadRepository leadRepository,
+                              ApplicationEventPublisher eventPublisher) {
         this.messageRepository = messageRepository;
         this.leadRepository = leadRepository;
+        this.eventPublisher = eventPublisher;
     }
 
     @Transactional
@@ -46,6 +51,7 @@ public class LeadResultRecorder {
 
             leadRepository.save(lead);
             message.setStatus(MessageStatus.QUALIFIED);
+            eventPublisher.publishEvent(new LeadQualifiedEvent(lead.getId()));
         } else {
             message.setStatus(MessageStatus.NOT_A_LEAD);
         }

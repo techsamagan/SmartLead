@@ -19,5 +19,12 @@ services:
       - '5672:5672'
       - '15672:15672'
 
+  # Local mail catcher: nothing leaves your machine, read the emails at http://localhost:8025
+  mailpit:
+    image: 'axllent/mailpit:latest'
+    ports:
+      - '1025:1025'
+      - '8025:8025'
+
 volumes:
   pgdata:
