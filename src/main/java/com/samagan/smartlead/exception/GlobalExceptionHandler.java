@@ -49,7 +49,7 @@ public class GlobalExceptionHandler {
     ) {
         ErrorResponse response = ErrorResponse.of(
                 ex.getStatusCode().value(),
-                ex.getStatusCode().toString(),
+                HttpStatus.valueOf(ex.getStatusCode().value()).getReasonPhrase(),
                 ex.getReason() != null ? ex.getReason() : ex.getMessage(),
                 request.getRequestURI()
         );
@@ -63,6 +63,13 @@ public class GlobalExceptionHandler {
             Exception ex,
             HttpServletRequest request
     ) {
+        // Spring's own web exceptions (unknown path, unsupported media type, ...) carry their status
+        if (ex instanceof org.springframework.web.ErrorResponse webError) {
+            HttpStatus status = HttpStatus.valueOf(webError.getStatusCode().value());
+            return ResponseEntity.status(status).body(ErrorResponse.of(
+                    status.value(), status.getReasonPhrase(), webError.getBody().getDetail(), request.getRequestURI()));
+        }
+
         log.error("Unhandled exception at URI: {}", request.getRequestURI(), ex);
 
         ErrorResponse response = ErrorResponse.of(

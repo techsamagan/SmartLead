@@ -1,12 +1,16 @@
 package com.samagan.smartlead.message;
 
+import com.samagan.smartlead.form.Form;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
+import jakarta.persistence.FetchType;
 import jakarta.persistence.Id;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
 
 import java.time.Instant;
@@ -19,6 +23,11 @@ public class Message {
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
     private UUID id;
+
+    // Null only for messages stored before forms existed
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "form_id")
+    private Form form;
 
     @Column(name = "sender_name", nullable = false, length = 100)
     private String senderName;
@@ -41,7 +50,8 @@ public class Message {
 
     public Message() {}
 
-    public Message(String senderName, String senderEmail, String content) {
+    public Message(Form form, String senderName, String senderEmail, String content) {
+        this.form = form;
         this.senderName = senderName;
         this.senderEmail = senderEmail;
         this.content = content;
@@ -51,6 +61,8 @@ public class Message {
 
     public UUID getId() { return id; }
     public void setId(UUID id) { this.id = id; }
+
+    public Form getForm() { return form; }
 
     public String getSenderName() { return senderName; }
     public void setSenderName(String senderName) { this.senderName = senderName; }

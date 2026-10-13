@@ -5,6 +5,8 @@ import java.util.UUID;
 
 public record MessageResponse(
         UUID id,
+        UUID formId,
+        String formName,
         String senderName,
         String senderEmail,
         String content,
@@ -15,6 +17,8 @@ public record MessageResponse(
     public static MessageResponse fromEntity(Message message) {
         return new MessageResponse(
                 message.getId(),
+                message.getForm().getId(),
+                message.getForm().getName(),
                 message.getSenderName(),
                 message.getSenderEmail(),
                 message.getContent(),
