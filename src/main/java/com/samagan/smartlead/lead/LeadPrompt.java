@@ -14,16 +14,5 @@ public final class LeadPrompt {
         - "urgency" must be exactly one of: low, medium, high (or null if not a lead).
         - "title": a concise title (e.g., "Enterprise Demo - 50 engineers") or null if not a lead.
         - "summary": a 1-2 sentence factual summary of the inquiry or null if not a lead.
-
-        Output ONLY a valid JSON object matching this schema:
-        {
-          "isLead": boolean,
-          "title": string or null,
-          "type": string or null,
-          "urgency": string or null,
-          "summary": string or null
-        }
-
-        Do not include markdown code fences, backticks, or any conversational text. Return raw JSON only.
         """;
 }

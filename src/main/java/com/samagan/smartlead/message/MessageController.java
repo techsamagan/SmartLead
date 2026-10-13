@@ -1,7 +1,10 @@
 package com.samagan.smartlead.message;
 
-import com.samagan.smartlead.lead.LeadQualificationService;
+import com.samagan.smartlead.lead.LeadQualificationPublisher;
 import jakarta.validation.Valid;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.amqp.AmqpException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -12,13 +15,15 @@ import java.util.List;
 @RequestMapping("/api/v1/messages")
 public class MessageController {
 
+    private static final Logger log = LoggerFactory.getLogger(MessageController.class);
+
     private final MessageRepository messageRepository;
-    private final LeadQualificationService qualificationService;
+    private final LeadQualificationPublisher qualificationPublisher;
 
     public MessageController(MessageRepository messageRepository,
-                             LeadQualificationService qualificationService) {
+                             LeadQualificationPublisher qualificationPublisher) {
         this.messageRepository = messageRepository;
-        this.qualificationService = qualificationService;
+        this.qualificationPublisher = qualificationPublisher;
     }
 
     @PostMapping
@@ -31,8 +36,13 @@ public class MessageController {
 
         Message savedMessage = messageRepository.save(message);
 
-        // Run qualification asynchronously
-        qualificationService.qualifyAsync(savedMessage.getId());
+        // The message is already committed; qualification happens asynchronously via RabbitMQ
+        try {
+            qualificationPublisher.publish(savedMessage.getId());
+        } catch (AmqpException e) {
+            // PendingMessageSweeper queues it again once the broker is back
+            log.warn("Could not queue messageId={} for qualification", savedMessage.getId(), e);
+        }
 
         return ResponseEntity.status(HttpStatus.ACCEPTED)
                 .body(MessageResponse.fromEntity(savedMessage));
